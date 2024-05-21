@@ -1,1 +1,3 @@
-"# looking_up" 
+Looking Up株式会社のスキルテスト
+
+Typescriptでやりました
