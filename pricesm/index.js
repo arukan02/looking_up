@@ -57,8 +57,9 @@ readStream.pipe((0, csv_parser_1.default)())
     .on('error', (err) => {
     console.error('Error reading the CSV file: ', err);
 });
+//takes an array of PriceData objects as input and returns a number
 function calculateHighestPrice(data) {
-    //sort data by price
+    //sort data by price by ascending order
     const sortedData = data.sort((a, b) => a.tooExpensivePrice - b.tooExpensivePrice);
     //calculate cumulative percentage
     const n = sortedData.length;
@@ -66,7 +67,8 @@ function calculateHighestPrice(data) {
         price: entry.tooExpensivePrice,
         percentage: (index + 1) / n * 100
     }));
-    const cheapPercentages = sortedData.map((entry, index) => ({
+    const sortedDataByCheap = [...sortedData].sort((a, b) => b.cheapPrice - a.cheapPrice);
+    const cheapPercentages = sortedDataByCheap.map((entry, index) => ({
         price: entry.cheapPrice,
         percentage: (index + 1) / n * 100
     }));
