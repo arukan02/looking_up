@@ -45,42 +45,62 @@ readStream.pipe((0, csv_parser_1.default)())
     priceData.push(priceEntry);
 })
     .on('end', () => {
-    const highestPrice = calculateHighestPrice(priceData);
+    //make an array of unique prices
+    const uniquePrices = sortUniquePrice(priceData);
+    const highestPrice = calculateHighestPrice(priceData, uniquePrices);
+    // Calculate percentage of expensivePrice and cheapPrice values lower than or equal to each unique price
+    const percentages = calculatePricePercentages(priceData, uniquePrices);
     const compromisedPrice = calculateCompromisedPrice(priceData);
     const idealPrice = calculateIdealPrice(priceData);
     const lowestQualityGuaranteedPrice = calculateLowestQualityGuaranteedPrice(priceData);
     console.log('最高価格', highestPrice, '円');
+    console.log('最高価格', highestPrice, '円');
     console.log('妥協価格', compromisedPrice, '円');
     console.log('理想価格', idealPrice, '円');
     console.log('最低品質保証価格', lowestQualityGuaranteedPrice, '円');
+    // Find the price where the percentage of expensivePrice and cheapPrice values are the same
+    const equalPercentagePrice = findEqualPercentagePrice(percentages);
+    // Output the result
+    console.log('Equal Percentage Price:', equalPercentagePrice);
 })
     .on('error', (err) => {
     console.error('Error reading the CSV file: ', err);
 });
-//takes an array of PriceData objects as input and returns a number
-function calculateHighestPrice(data) {
-    //sort data by price by ascending order
-    const sortedData = data.sort((a, b) => a.tooExpensivePrice - b.tooExpensivePrice);
+//function to make an array of sorted unique price
+function sortUniquePrice(data) {
+    const uniquePriceSet = new Set();
+    //iterate every price point
+    data.forEach(entry => {
+        uniquePriceSet.add(entry.expensivePrice);
+        uniquePriceSet.add(entry.cheapPrice);
+        uniquePriceSet.add(entry.tooExpensivePrice);
+        uniquePriceSet.add(entry.tooCheapPrice);
+    });
+    //convert set to array and sort
+    return Array.from(uniquePriceSet).sort((a, b) => a - b);
+}
+function calculatePricePercentages(data, uniquePrices) {
     //calculate cumulative percentage
-    const n = sortedData.length;
-    const tooExpensivePercentages = sortedData.map((entry, index) => ({
-        price: entry.tooExpensivePrice,
-        percentage: (index + 1) / n * 100
-    }));
-    const sortedDataByCheap = [...sortedData].sort((a, b) => b.cheapPrice - a.cheapPrice);
-    const cheapPercentages = sortedDataByCheap.map((entry, index) => ({
-        price: entry.cheapPrice,
-        percentage: (index + 1) / n * 100
-    }));
-    //find the intersection
-    let intersectionPrice = 0;
-    for (let i = 0; i < tooExpensivePercentages.length - 1; i++) {
-        if (tooExpensivePercentages[i].percentage >= cheapPercentages[i].percentage) {
-            intersectionPrice = (tooExpensivePercentages[i].price + cheapPercentages[i].price) / 2;
-            break;
+    const n = data.length;
+    return uniquePrices.map(price => {
+        const expensiveCount = data.filter(entry => entry.expensivePrice <= price).length;
+        const expensivePercentage = (expensiveCount / n) * 100;
+        const cheapCount = data.filter(entry => entry.cheapPrice >= price).length;
+        const cheapPercentage = (cheapCount / n) * 100;
+        return { price, expensivePercentage, cheapPercentage };
+    });
+}
+// Function to find the price where the percentage of expensivePrice and cheapPrice values are the same
+function findEqualPercentagePrice(percentages) {
+    for (const percentage of percentages) {
+        if (percentage.expensivePercentage === percentage.cheapPercentage) {
+            return percentage.price;
         }
     }
-    return intersectionPrice;
+    return null; // If no such price is found
+}
+function calculateHighestPrice(data, uniquePrices) {
+    return 1;
 }
 function calculateCompromisedPrice(data) {
     return 2;
