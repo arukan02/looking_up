@@ -11,7 +11,14 @@ interface PriceData {
     tooCheapPrice: number;
 }
 
-const csvFilePath = path.resolve(__dirname, 'PSMrawdata.csv');
+//get the filename from args
+const args = process.argv.slice(2);
+if(args.length < 1){
+    console.error('please input csv filename as args');
+    process.exit(1);
+}
+const csvFileName = args[0];
+const csvFilePath = path.resolve(__dirname, csvFileName);
 const priceData: PriceData[] = [];
 
 interface CsvRow {
