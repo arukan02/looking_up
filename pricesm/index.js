@@ -47,21 +47,17 @@ readStream.pipe((0, csv_parser_1.default)())
     .on('end', () => {
     //make an array of unique prices
     const uniquePrices = sortUniquePrice(priceData);
-    const highestPrice = calculateHighestPrice(priceData, uniquePrices);
     // Calculate percentage of expensivePrice and cheapPrice values lower than or equal to each unique price
     const percentages = calculatePricePercentages(priceData, uniquePrices);
-    const compromisedPrice = calculateCompromisedPrice(priceData);
-    const idealPrice = calculateIdealPrice(priceData);
-    const lowestQualityGuaranteedPrice = calculateLowestQualityGuaranteedPrice(priceData);
-    console.log('最高価格', highestPrice, '円');
+    // Find the price where the percentage of tooExpensivePrice and cheapPrice values are the same
+    const highestPrice = findHighestPrice(percentages);
+    const compromisedPrice = findCompromisedPrice(percentages);
+    const idealPrice = findIdealPrice(percentages);
+    const lowestQualityGuaranteedPrice = findLowestQualityGuaranteedPrice(percentages);
     console.log('最高価格', highestPrice, '円');
     console.log('妥協価格', compromisedPrice, '円');
     console.log('理想価格', idealPrice, '円');
     console.log('最低品質保証価格', lowestQualityGuaranteedPrice, '円');
-    // Find the price where the percentage of expensivePrice and cheapPrice values are the same
-    const equalPercentagePrice = findEqualPercentagePrice(percentages);
-    // Output the result
-    console.log('Equal Percentage Price:', equalPercentagePrice);
 })
     .on('error', (err) => {
     console.error('Error reading the CSV file: ', err);
@@ -87,41 +83,79 @@ function calculatePricePercentages(data, uniquePrices) {
         const expensivePercentage = (expensiveCount / n) * 100;
         const cheapCount = data.filter(entry => entry.cheapPrice >= price).length;
         const cheapPercentage = (cheapCount / n) * 100;
-        return { price, expensivePercentage, cheapPercentage };
+        const tooExpensiveCount = data.filter(entry => entry.tooExpensivePrice <= price).length;
+        const tooExpensivePercentage = (tooExpensiveCount / n) * 100;
+        const tooCheapCount = data.filter(entry => entry.tooCheapPrice >= price).length;
+        const tooCheapPercentage = (tooCheapCount / n) * 100;
+        return { price, expensivePercentage, cheapPercentage, tooExpensivePercentage, tooCheapPercentage };
     });
 }
 // Function to find the price where the percentage of expensivePrice and cheapPrice values are the same
-function findEqualPercentagePrice(percentages) {
+function findHighestPrice(percentages) {
+    let closestPrice = percentages[0].price;
+    let smallestDifference = Math.abs(percentages[0].tooExpensivePercentage - percentages[0].cheapPercentage);
     for (const percentage of percentages) {
-        if (percentage.expensivePercentage === percentage.cheapPercentage) {
-            return percentage.price;
+        const difference = Math.abs(percentage.tooExpensivePercentage - percentage.cheapPercentage);
+        if (difference < smallestDifference) {
+            smallestDifference = difference;
+            closestPrice = percentage.price;
         }
     }
-    return null; // If no such price is found
+    const closestPrices = percentages.filter(percentage => Math.abs(percentage.tooExpensivePercentage - percentage.cheapPercentage) === smallestDifference);
+    if (closestPrices.length > 1) {
+        const averagePrice = closestPrices.reduce((sum, percentage) => sum + percentage.price, 0) / closestPrices.length;
+        return averagePrice;
+    }
+    return closestPrice;
 }
-function calculateHighestPrice(data, uniquePrices) {
-    return 1;
+function findCompromisedPrice(percentages) {
+    let closestPrice = percentages[0].price;
+    let smallestDifference = Math.abs(percentages[0].expensivePercentage - percentages[0].cheapPercentage);
+    for (const percentage of percentages) {
+        const difference = Math.abs(percentage.expensivePercentage - percentage.cheapPercentage);
+        if (difference < smallestDifference) {
+            smallestDifference = difference;
+            closestPrice = percentage.price;
+        }
+    }
+    const closestPrices = percentages.filter(percentage => Math.abs(percentage.expensivePercentage - percentage.cheapPercentage) === smallestDifference);
+    if (closestPrices.length > 1) {
+        const averagePrice = closestPrices.reduce((sum, percentage) => sum + percentage.price, 0) / closestPrices.length;
+        return averagePrice;
+    }
+    return closestPrice;
 }
-function calculateCompromisedPrice(data) {
-    return 2;
+function findIdealPrice(percentages) {
+    let closestPrice = percentages[0].price;
+    let smallestDifference = Math.abs(percentages[0].tooExpensivePercentage - percentages[0].tooCheapPercentage);
+    for (const percentage of percentages) {
+        const difference = Math.abs(percentage.tooExpensivePercentage - percentage.tooCheapPercentage);
+        if (difference < smallestDifference) {
+            smallestDifference = difference;
+            closestPrice = percentage.price;
+        }
+    }
+    const closestPrices = percentages.filter(percentage => Math.abs(percentage.tooExpensivePercentage - percentage.tooCheapPercentage) === smallestDifference);
+    if (closestPrices.length > 1) {
+        const averagePrice = closestPrices.reduce((sum, percentage) => sum + percentage.price, 0) / closestPrices.length;
+        return averagePrice;
+    }
+    return closestPrice;
 }
-function calculateIdealPrice(data) {
-    return 3;
+function findLowestQualityGuaranteedPrice(percentages) {
+    let closestPrice = percentages[0].price;
+    let smallestDifference = Math.abs(percentages[0].expensivePercentage - percentages[0].tooCheapPercentage);
+    for (const percentage of percentages) {
+        const difference = Math.abs(percentage.expensivePercentage - percentage.tooCheapPercentage);
+        if (difference < smallestDifference) {
+            smallestDifference = difference;
+            closestPrice = percentage.price;
+        }
+    }
+    const closestPrices = percentages.filter(percentage => Math.abs(percentage.expensivePercentage - percentage.tooCheapPercentage) === smallestDifference);
+    if (closestPrices.length > 1) {
+        const averagePrice = closestPrices.reduce((sum, percentage) => sum + percentage.price, 0) / closestPrices.length;
+        return averagePrice;
+    }
+    return closestPrice;
 }
-function calculateLowestQualityGuaranteedPrice(data) {
-    return 4;
-}
-/*「高すぎて買えない」と「安いと思う」の交点 →「最高価格」
-「高いと思う」と「安いと思う」の交点 →「妥協価格」
-「高すぎて買えない」と「安すぎて買わない」の交点→「理想価格」
-「高いと思う」と「安すぎて買わない」の交点 →「最低品質保証価格」*/
-//i need to calculate the percentage of each price range (too cheap, cheap, expensive, too expensive)
-//i need to find the price where
-//1. too expensive and cheap cross (highest price / marginal exxpensiveness)
-//2. expensive and cheap cross (compromise price / acceptable pricing)
-//3. too expensive and too cheap cross (ideal price / optimal price point)
-//4. expensive and too cheap cross ()
-//cross means the percentage are the same for the 2 prices
-//read all data, and make the percentage for each price
-//for the expensive, find the percentage of prices below the current pointer
-//for the cheap, find the percentage of prices above the current pointer
