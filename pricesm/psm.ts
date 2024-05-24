@@ -50,10 +50,11 @@ readStream.pipe(csv())
         const percentages = calculatePricePercentages(priceData, uniquePrices);
 
         // Find the price where the percentage of tooExpensivePrice and cheapPrice values are the same
-        const highestPrice = findHighestPrice(percentages);
-        const compromisedPrice = findCompromisedPrice(percentages);
-        const idealPrice = findIdealPrice(percentages);
-        const lowestQualityGuaranteedPrice = findLowestQualityGuaranteedPrice(percentages);
+        const highestPrice = findOptimalPrice(percentages, 'tooExpensivePercentage', 'cheapPercentage');
+        const compromisedPrice = findOptimalPrice(percentages, 'expensivePercentage', 'cheapPercentage');
+        const idealPrice = findOptimalPrice(percentages, 'tooExpensivePercentage', 'tooCheapPercentage');
+        const lowestQualityGuaranteedPrice = findOptimalPrice(percentages, 'expensivePercentage', 'tooCheapPercentage');
+
       
         console.log('最高価格', highestPrice, '円');
         console.log('妥協価格', compromisedPrice, '円');
@@ -81,6 +82,14 @@ function sortUniquePrice(data: PriceData[]): number[]{
     return Array.from(uniquePriceSet).sort((a, b) => a - b);
 }
 
+interface Percentages {
+    price: number;
+    expensivePercentage: number;
+    cheapPercentage: number;
+    tooExpensivePercentage: number;
+    tooCheapPercentage: number;
+}
+
 function calculatePricePercentages(data: PriceData[], uniquePrices: number[]): {price: number, expensivePercentage: number, cheapPercentage: number, tooExpensivePercentage: number, tooCheapPercentage: number} [] {
     //calculate cumulative percentage
     const n = data.length;
@@ -101,12 +110,12 @@ function calculatePricePercentages(data: PriceData[], uniquePrices: number[]): {
 }
 
 // Function to find the price where the percentage of expensivePrice and cheapPrice values are the same
-function findHighestPrice(percentages: { price: number, tooExpensivePercentage: number, cheapPercentage: number }[]): number | null {
+function findOptimalPrice(percentages: Percentages[], key1: keyof Percentages, key2: keyof Percentages): number | null {
     let closestPrice = percentages[0].price;
-    let smallestDifference = Math.abs(percentages[0].tooExpensivePercentage - percentages[0].cheapPercentage);
+    let smallestDifference = Math.abs((percentages[0][key1] as number) - (percentages[0][key2] as number));
 
     for (const percentage of percentages) {
-        const difference = Math.abs(percentage.tooExpensivePercentage - percentage.cheapPercentage);
+        const difference = Math.abs((percentage[key1] as number) - (percentage[key2] as number));
         if (difference < smallestDifference) {
             smallestDifference = difference;
             closestPrice = percentage.price;
@@ -114,79 +123,7 @@ function findHighestPrice(percentages: { price: number, tooExpensivePercentage: 
     }
 
     const closestPrices = percentages.filter(percentage => 
-        Math.abs(percentage.tooExpensivePercentage - percentage.cheapPercentage) === smallestDifference
-    );
-
-    if (closestPrices.length > 1) {
-        const averagePrice = closestPrices.reduce((sum, percentage) => sum + percentage.price, 0) / closestPrices.length;
-        return averagePrice;
-    }
-
-    return closestPrice;
-}
-
-function findCompromisedPrice(percentages: { price: number, expensivePercentage: number, cheapPercentage: number }[]): number | null {
-    let closestPrice = percentages[0].price;
-    let smallestDifference = Math.abs(percentages[0].expensivePercentage - percentages[0].cheapPercentage);
-
-    for (const percentage of percentages) {
-        const difference = Math.abs(percentage.expensivePercentage - percentage.cheapPercentage);
-        if (difference < smallestDifference) {
-            smallestDifference = difference;
-            closestPrice = percentage.price;
-        }
-    }
-
-    const closestPrices = percentages.filter(percentage => 
-        Math.abs(percentage.expensivePercentage - percentage.cheapPercentage) === smallestDifference
-    );
-
-    if (closestPrices.length > 1) {
-        const averagePrice = closestPrices.reduce((sum, percentage) => sum + percentage.price, 0) / closestPrices.length;
-        return averagePrice;
-    }
-
-    return closestPrice;
-}
-
-function findIdealPrice(percentages: { price: number, tooExpensivePercentage: number, tooCheapPercentage: number }[]): number | null {
-    let closestPrice = percentages[0].price;
-    let smallestDifference = Math.abs(percentages[0].tooExpensivePercentage - percentages[0].tooCheapPercentage);
-
-    for (const percentage of percentages) {
-        const difference = Math.abs(percentage.tooExpensivePercentage - percentage.tooCheapPercentage);
-        if (difference < smallestDifference) {
-            smallestDifference = difference;
-            closestPrice = percentage.price;
-        }
-    }
-
-    const closestPrices = percentages.filter(percentage => 
-        Math.abs(percentage.tooExpensivePercentage - percentage.tooCheapPercentage) === smallestDifference
-    );
-
-    if (closestPrices.length > 1) {
-        const averagePrice = closestPrices.reduce((sum, percentage) => sum + percentage.price, 0) / closestPrices.length;
-        return averagePrice;
-    }
-
-    return closestPrice;
-}
-
-function findLowestQualityGuaranteedPrice(percentages: { price: number, expensivePercentage: number, tooCheapPercentage: number }[]): number | null {
-    let closestPrice = percentages[0].price;
-    let smallestDifference = Math.abs(percentages[0].expensivePercentage - percentages[0].tooCheapPercentage);
-
-    for (const percentage of percentages) {
-        const difference = Math.abs(percentage.expensivePercentage - percentage.tooCheapPercentage);
-        if (difference < smallestDifference) {
-            smallestDifference = difference;
-            closestPrice = percentage.price;
-        }
-    }
-
-    const closestPrices = percentages.filter(percentage => 
-        Math.abs(percentage.expensivePercentage - percentage.tooCheapPercentage) === smallestDifference
+        Math.abs((percentage[key1] as number) - (percentage[key2] as number)) === smallestDifference
     );
 
     if (closestPrices.length > 1) {
