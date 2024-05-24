@@ -115,25 +115,36 @@ function calculatePricePercentages(data: PriceData[], uniquePrices: number[]): {
 
 // Function to find the price where the percentage of two price values are the same
 function findOptimalPrice(percentages: Percentages[], key1: keyof Percentages, key2: keyof Percentages): number | null {
-    let closestPrice = percentages[0].price;
-    let smallestDifference = Math.abs((percentages[0][key1] as number) - (percentages[0][key2] as number));
+    // Sort the percentages by the absolute difference between key1 and key2
+    const sortedPercentages = percentages
+        .map(p => ({ ...p, difference: Math.abs(p[key1] - p[key2]) }))
+        .sort((a, b) => a.difference - b.difference);
 
-    for (const percentage of percentages) {
-        const difference = Math.abs((percentage[key1] as number) - (percentage[key2] as number));
-        if (difference < smallestDifference) {
-            smallestDifference = difference;
-            closestPrice = percentage.price;
-        }
+    // If the smallest difference is zero, return the corresponding price
+    if (sortedPercentages[0].difference === 0) {
+        return sortedPercentages[0].price;
     }
 
-    const closestPrices = percentages.filter(percentage => 
-        Math.abs((percentage[key1] as number) - (percentage[key2] as number)) === smallestDifference
-    );
+    // Get the two closest points
+    const closestPrices = sortedPercentages.slice(0, 2);
 
-    if (closestPrices.length > 1) {
-        const averagePrice = closestPrices.reduce((sum, percentage) => sum + percentage.price, 0) / closestPrices.length;
-        return averagePrice;
-    }
+    // Sort the closestPrices by price
+    closestPrices.sort((a, b) => a.price - b.price);
 
-    return closestPrice;
+    //debugging
+    // console.log('Two closest percentages:');
+    // console.log(`Price 1: ${closestPrices[0].price}, ${key1}: ${closestPrices[0][key1]}, ${key2}: ${closestPrices[0][key2]}, Difference: ${closestPrices[0].difference}`);
+    // console.log(`Price 2: ${closestPrices[1].price}, ${key1}: ${closestPrices[1][key1]}, ${key2}: ${closestPrices[1][key2]}, Difference: ${closestPrices[1].difference}`);
+
+    const p1 = closestPrices[0]; //x1 = x3 = p1.price, y1 = p1[key1], y3 = p1[key2]
+    const p2 = closestPrices[1]; //x2 = x4 = p2.price, y2 = p2[key1], y4 = p2[key2]
+
+    // simplify the equation
+    const x = (p1.price - p2.price); // x1 - x2 = x3 - x4 = p1.price - p2.price
+
+    // Find intersection
+    const intersectionPrice = (((p1[key2] - p1[key1]) * x * x) + (p1.price * (p1[key1] - p2[key1]) * x) - (p1.price * (p1[key2] - p2[key2]) * x))
+     / (((p1[key1] - p2[key1]) * x) - (x * (p1[key2] - p2[key2])));
+
+    return intersectionPrice;
 }
