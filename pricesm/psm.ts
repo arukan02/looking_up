@@ -11,6 +11,15 @@ interface PriceData {
     tooCheapPrice: number;
 }
 
+//to get the header
+interface CsvRow {
+    'sample number': string;
+    '高い': string;
+    '安い': string;
+    '高すぎる': string;
+    '安すぎる': string;
+}
+
 //get the filename from args
 const args = process.argv.slice(2);
 if(args.length < 1){
@@ -21,18 +30,12 @@ const csvFileName = args[0];
 const csvFilePath = path.resolve(__dirname, csvFileName);
 const priceData: PriceData[] = [];
 
-interface CsvRow {
-    'sample number': string;
-    '高い': string;
-    '安い': string;
-    '高すぎる': string;
-    '安すぎる': string;
-}
-
+//to read the japanese characters
 const readStream = fs.createReadStream(csvFilePath).pipe(iconv.decodeStream('utf-8'));
 
 readStream.pipe(csv())
     .on('data', (data: CsvRow) => {
+        //make a new set
         const priceEntry: PriceData = {
             sampleNumber: parseInt(data["sample number"]),
             expensivePrice: parseFloat(data["高い"]),
@@ -46,10 +49,10 @@ readStream.pipe(csv())
         //make an array of unique prices
         const uniquePrices = sortUniquePrice(priceData);
 
-        // Calculate percentage of expensivePrice and cheapPrice values lower than or equal to each unique price
+        // Calculate percentage of each unique price compared to price data range
         const percentages = calculatePricePercentages(priceData, uniquePrices);
 
-        // Find the price where the percentage of tooExpensivePrice and cheapPrice values are the same
+        // Find the price of each PSM
         const highestPrice = findOptimalPrice(percentages, 'tooExpensivePercentage', 'cheapPercentage');
         const compromisedPrice = findOptimalPrice(percentages, 'expensivePercentage', 'cheapPercentage');
         const idealPrice = findOptimalPrice(percentages, 'tooExpensivePercentage', 'tooCheapPercentage');
@@ -82,6 +85,7 @@ function sortUniquePrice(data: PriceData[]): number[]{
     return Array.from(uniquePriceSet).sort((a, b) => a - b);
 }
 
+//used interface to give clear structure for calculatePricePercentages function
 interface Percentages {
     price: number;
     expensivePercentage: number;
@@ -90,8 +94,8 @@ interface Percentages {
     tooCheapPercentage: number;
 }
 
+//calculate percentage of each data range
 function calculatePricePercentages(data: PriceData[], uniquePrices: number[]): {price: number, expensivePercentage: number, cheapPercentage: number, tooExpensivePercentage: number, tooCheapPercentage: number} [] {
-    //calculate cumulative percentage
     const n = data.length;
     return uniquePrices.map(price => {
         const expensiveCount = data.filter(entry => entry.expensivePrice <= price).length;
@@ -109,7 +113,7 @@ function calculatePricePercentages(data: PriceData[], uniquePrices: number[]): {
     });
 }
 
-// Function to find the price where the percentage of expensivePrice and cheapPrice values are the same
+// Function to find the price where the percentage of two price values are the same
 function findOptimalPrice(percentages: Percentages[], key1: keyof Percentages, key2: keyof Percentages): number | null {
     let closestPrice = percentages[0].price;
     let smallestDifference = Math.abs((percentages[0][key1] as number) - (percentages[0][key2] as number));
