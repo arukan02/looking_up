@@ -47,7 +47,7 @@ readStream.pipe(csv())
     })
     .on('end', () => {
         //make an array of unique prices
-        const uniquePrices = sortUniquePrice(priceData);
+        const uniquePrices = sortMultipleofFifty(priceData);
 
         // Calculate percentage of each unique price compared to price data range
         const percentages = calculatePricePercentages(priceData, uniquePrices);
@@ -69,20 +69,22 @@ readStream.pipe(csv())
         console.error('Error reading the CSV file: ', err);
     }); 
 
-//function to make an array of sorted unique price
-function sortUniquePrice(data: PriceData[]): number[]{
-    const uniquePriceSet = new Set<number>();
+//function to make an array of sorted price
+function sortMultipleofFifty(data: PriceData[]): number[]{
+    // Find the maximum price in the dataset
+    let maxPrice = 0;
     
-    //iterate every price point
     data.forEach(entry => {
-        uniquePriceSet.add(entry.expensivePrice);
-        uniquePriceSet.add(entry.cheapPrice);
-        uniquePriceSet.add(entry.tooExpensivePrice);
-        uniquePriceSet.add(entry.tooCheapPrice);
+        maxPrice = Math.max(maxPrice, entry.expensivePrice, entry.cheapPrice, entry.tooExpensivePrice, entry.tooCheapPrice);
     });
 
-    //convert set to array and sort
-    return Array.from(uniquePriceSet).sort((a, b) => a - b);
+    // Create an array of prices in multiples of 50 up to the maximum price
+    const prices: number[] = [];
+    for (let price = 50; price <= maxPrice; price += 50) {
+        prices.push(price);
+    }
+
+    return prices;
 }
 
 //used interface to give clear structure for calculatePricePercentages function
@@ -115,21 +117,28 @@ function calculatePricePercentages(data: PriceData[], uniquePrices: number[]): {
 
 // Function to find the price where the percentage of two price values are the same
 function findOptimalPrice(percentages: Percentages[], key1: keyof Percentages, key2: keyof Percentages): number | null {
-    // Sort the percentages by the absolute difference between key1 and key2
+    // Calculate the differences and sort by price
     const sortedPercentages = percentages
-        .map(p => ({ ...p, difference: Math.abs(p[key1] - p[key2]) }))
-        .sort((a, b) => a.difference - b.difference);
+        .map(p => ({ ...p, difference: p[key1] - p[key2] }))
+        .sort((a, b) => a.price - b.price);
 
-    // If the smallest difference is zero, return the corresponding price
-    if (sortedPercentages[0].difference === 0) {
-        return sortedPercentages[0].price;
+    // Check if there's any entry with a difference of zero
+    for (const p of sortedPercentages) {
+        if (p.difference === 0) {
+            return p.price;
+        }
     }
 
     // Get the two closest points
-    const closestPrices = sortedPercentages.slice(0, 2);
+    let closestPrices = sortedPercentages.slice(0, 2);
 
-    // Sort the closestPrices by price
-    closestPrices.sort((a, b) => a.price - b.price);
+    // Find the first instance where the difference changes from negative to positive
+    for (let i = 0; i < sortedPercentages.length - 1; i++) {
+        if (sortedPercentages[i].difference < 0 && sortedPercentages[i + 1].difference > 0) {
+            closestPrices = [sortedPercentages[i], sortedPercentages[i + 1]];
+            break;
+        }
+    }
 
     //debugging
     // console.log('Two closest percentages:');
@@ -146,5 +155,6 @@ function findOptimalPrice(percentages: Percentages[], key1: keyof Percentages, k
     const intersectionPrice = (((p1[key2] - p1[key1]) * x * x) + (p1.price * (p1[key1] - p2[key1]) * x) - (p1.price * (p1[key2] - p2[key2]) * x))
      / (((p1[key1] - p2[key1]) * x) - (x * (p1[key2] - p2[key2])));
 
-    return intersectionPrice;
+     //round up the price
+    return Math.ceil(intersectionPrice);
 }
